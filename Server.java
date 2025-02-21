@@ -33,8 +33,6 @@ public class Server {
                     } else {
                         out.writeUTF("Invalid input, please send a valid alphabetic string.");
                     }
-                    // Sending response to the client
-                    out.writeUTF("SERVER: " + message);
                 }
                 catch(IOException err)
                 {
