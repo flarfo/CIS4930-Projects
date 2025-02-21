@@ -21,7 +21,6 @@ public class Server {
             out = new DataOutputStream(socket.getOutputStream());
             String message = "";
 
-            // Reads message from client until "bye" is sent
             while (!message.equals("bye"))
             {
                 try
