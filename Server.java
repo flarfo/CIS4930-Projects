@@ -23,11 +23,17 @@ public class Server {
             out = new DataOutputStream(socket.getOutputStream());
             String message = "";
 
-            while (!message.equals("bye"))
+            while (true)
             {
                 try
                 {
                     message = in.readUTF();
+                    // Terminate when "bye" received
+                    if (message.equals("bye")) {
+                        out.writeUTF("disconnected");
+                        break;
+                    }
+
                     System.out.println("Client says: " + message);
                     if (isValidInput(message)) {
                         out.writeUTF(message.toUpperCase());

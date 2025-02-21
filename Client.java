@@ -31,14 +31,21 @@ public class Client {
 
         String message = ""; // String to read message from user input
         String response = ""; // String to read response from server
-        List<Long> roundTripTimes = new ArrayList<>();
+        List<Double> roundTripTimes = new ArrayList<>();
 
         // Read until "bye" is input
         while (!message.equals("bye")) {
             try {
+                if (message.equals("bye")) {
+                    response = rin.readUTF();
+                    System.out.println(response);
+                    break;
+                }
+
                 // Read user input
                 System.out.print("Enter a string: ");
                 message = in.readLine();
+
                 // Write to server + time it
                 long startTime = System.nanoTime();
 
@@ -50,7 +57,7 @@ public class Client {
                 System.out.println(response);
 
                 long endTime = System.nanoTime();
-                long roundTripTime = (endTime - startTime) / 10000000;  // Convert to milliseconds
+                double roundTripTime = (endTime - startTime) / 10000000.0;  // Convert to milliseconds
                 System.out.println("Round-trip time: " + roundTripTime + " ms");
                 roundTripTimes.add(roundTripTime);
 
