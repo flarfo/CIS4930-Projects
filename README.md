@@ -5,7 +5,7 @@ TCP/IP client/server model written using Java Sockets for Programming Assignment
 javac Class.java Server.java
 
 # Running
-[Machine/Command Line 1] java Client ${PORT}
+[Machine/Command Line 1] java Client ${ADDRESS} ${PORT}
 
 [Machine/Command Line 2] java Server ${PORT}
 
