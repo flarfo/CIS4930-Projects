@@ -27,11 +27,13 @@ public class Server {
                 try
                 {
                     message = in.readUTF();
-                    System.out.println(message);
-
-                    // TODO: Project specs #1 (capitalize alphabet and return to client)
-
-                    // Send response to client
+                    System.out.println("Client says: " + message);
+                    if (isValidInput(message)) {
+                        out.writeUTF(message.toUpperCase());
+                    } else {
+                        out.writeUTF("Invalid input, please send a valid alphabetic string.");
+                    }
+                    // Sending response to the client
                     out.writeUTF("SERVER: " + message);
                 }
                 catch(IOException err)
@@ -54,8 +56,18 @@ public class Server {
         }
     }
 
+    // Adding this to check if the client passes a valid input
+    private boolean isValidInput(String str) {
+        return str.matches("[a-zA-Z]+");
+    }
+
     public static void main(String args[])
     {
+        // Error handle for when no arguments are passed!
+        if (args.length != 1) {
+            System.out.println("Usage: java Server <port_number>");
+            return;
+        }
         Server server = new Server(Integer.parseInt(args[0]));
     }
 }

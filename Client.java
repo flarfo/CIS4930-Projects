@@ -63,6 +63,12 @@ public class Client {
 
     public static void main(String args[])
     {
-        Client client = new Client("127.0.0.1", Integer.parseInt(args[0]));
+        if (args.length != 2) {
+            System.out.println("Usage: java Client <server_address> <port_number>");
+            return;
+        }
+        String serverAddress = args[0];
+        int port = Integer.parseInt(args[1]);
+        new Client(serverAddress, port);
     }
 }
