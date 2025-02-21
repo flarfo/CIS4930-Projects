@@ -1,5 +1,9 @@
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.*;
+import java.time.*;
 
 public class Client {
     private Socket socket;
@@ -27,18 +31,29 @@ public class Client {
 
         String message = ""; // String to read message from user input
         String response = ""; // String to read response from server
-        
+        List<Long> roundTripTimes = new ArrayList<>();
+
         // Read until "bye" is input
         while (!message.equals("bye")) {
             try {
                 // Read user input
+                System.out.print("Enter a string: ");
                 message = in.readLine();
-                // Write to server
+                // Write to server + time it
+                long startTime = System.nanoTime();
+
                 out.writeUTF(message);
+                out.flush();
 
                 // Read from server
                 response = rin.readUTF();
                 System.out.println(response);
+
+                long endTime = System.nanoTime();
+                long roundTripTime = (endTime - startTime) / 10000000;  // Convert to milliseconds
+                System.out.println("Round-trip time: " + roundTripTime + " ms");
+                roundTripTimes.add(roundTripTime);
+
             }
             catch (IOException err) {
                 System.out.println(err);
