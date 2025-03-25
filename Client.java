@@ -66,7 +66,12 @@ public class Client {
                     byte[] buffer = new byte[4096];
                     int bytesRead;
     
-                    while ((bytesRead = rin.read(buffer)) != -1) {
+                    long fileSize = rin.readLong();
+                    long totalBytesRead = 0;
+
+                    while (totalBytesRead < fileSize) {
+                        bytesRead = rin.read(buffer);
+                        totalBytesRead += bytesRead;
                         fos.write(buffer, 0, bytesRead);
                     }
                     fos.close();
