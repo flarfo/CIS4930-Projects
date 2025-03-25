@@ -8,7 +8,6 @@ public class Server {
     private ServerSocket serverSocket;
     private DataInputStream in; // Read (client) input from the socket
     private DataOutputStream out; // Write (server) response to client
-    private FileInputStream fis; // Read files on server database (./images)
 
     public Server(int port) {
         try
@@ -41,7 +40,16 @@ public class Server {
                         continue;
                     }
 
-                    fis.close();
+                    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file)); // Read files on server database (./images)
+                    byte[] buffer = new byte[4096];
+                    int readCount;
+            
+                    while ((readCount = bis.read(buffer)) != -1) {
+                        out.write(buffer);
+                        out.flush();
+                    }
+
+                    bis.close();
                 }
                 catch(IOException err)
                 {
