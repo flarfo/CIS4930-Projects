@@ -45,7 +45,7 @@ public class Server {
                     int readCount;
             
                     while ((readCount = bis.read(buffer)) != -1) {
-                        out.write(buffer);
+                        out.write(buffer, 0, readCount);
                         out.flush();
                     }
 
