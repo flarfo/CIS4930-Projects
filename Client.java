@@ -46,7 +46,6 @@ public class Client {
                     System.out.println(response);
                     break;
                 }
-
                 // Write to server + time it
                 long startTime = System.nanoTime();
 
@@ -58,26 +57,17 @@ public class Client {
                 if (response.equals("File not found")) {
                     // The server didn't find the file
                     System.out.println(response);
-                } else {
-                    // The server found the file
-                    long fileSize = rin.readLong();
+                } else if (response.equals("OK")) {
                     FileOutputStream fos = new FileOutputStream("./downloads/" + message);
                     byte[] buffer = new byte[4096];
-                    long totalBytesRead = 0;
+                    int bytesRead;
     
-                    while (totalBytesRead < fileSize) {
-                        int bytesRead = rin.read(buffer);
-                        if (bytesRead == -1) {
-                            break; 
-                            // something went wrong or server closed early
-                        }
+                    while ((bytesRead = rin.read(buffer)) != -1) {
                         fos.write(buffer, 0, bytesRead);
-
-                        totalBytesRead += bytesRead;
                     }
-
                     fos.close();
-                    System.out.println("Downloaded: " + message + " (" + totalBytesRead + " bytes)");
+    
+                    System.out.println("File downloaded: " + message);
                 }
 
                 long endTime = System.nanoTime();
