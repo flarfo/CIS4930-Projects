@@ -58,7 +58,11 @@ public class Client {
                     // The server didn't find the file
                     System.out.println(response);
                 } else if (response.equals("OK")) {
-                    FileOutputStream fos = new FileOutputStream("./downloads/" + message);
+
+                    File dir = new File("./downloads");
+                    if (!dir.exists()) dir.mkdirs(); // create the folder if needed
+
+                    FileOutputStream fos = new FileOutputStream(new File(dir, message));
                     byte[] buffer = new byte[4096];
                     int bytesRead;
     
@@ -66,7 +70,7 @@ public class Client {
                         fos.write(buffer, 0, bytesRead);
                     }
                     fos.close();
-    
+                    
                     System.out.println("File downloaded: " + message);
                 }
 
