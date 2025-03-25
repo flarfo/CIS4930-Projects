@@ -46,7 +46,7 @@ public class Client {
                     System.out.println(response);
                     break;
                 }
-                
+
                 // Write to server + time it
                 long startTime = System.nanoTime();
 
@@ -61,7 +61,7 @@ public class Client {
                 } else {
                     // The server found the file
                     long fileSize = rin.readLong();
-                    FileOutputStream fos = new FileOutputStream("./downloads/" + filename);
+                    FileOutputStream fos = new FileOutputStream("./downloads/" + message);
                     byte[] buffer = new byte[4096];
                     long totalBytesRead = 0;
     
