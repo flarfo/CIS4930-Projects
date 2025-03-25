@@ -44,6 +44,8 @@ public class Server {
                     byte[] buffer = new byte[4096];
                     int readCount;
             
+                    out.writeUTF("OK");
+
                     while ((readCount = bis.read(buffer)) != -1) {
                         out.write(buffer, 0, readCount);
                         out.flush();
