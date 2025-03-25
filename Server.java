@@ -8,6 +8,7 @@ public class Server {
     private ServerSocket serverSocket;
     private DataInputStream in; // Read (client) input from the socket
     private DataOutputStream out; // Write (server) response to client
+    private FileInputStream fis; // Read files on server database (./images)
 
     public Server(int port) {
         try
@@ -34,12 +35,13 @@ public class Server {
                         break;
                     }
 
-                    System.out.println("Client says: " + message);
-                    if (isValidInput(message)) {
-                        out.writeUTF(message.toUpperCase());
-                    } else {
-                        out.writeUTF("Invalid input, please send a valid alphabetic string.");
+                    File file = new File("./images", message);
+                    if (!file.exists()) {
+                        out.writeUTF("File not found");
+                        continue;
                     }
+
+                    fis.close();
                 }
                 catch(IOException err)
                 {
@@ -59,11 +61,6 @@ public class Server {
         catch (IOException err) {
             System.out.println(err);
         }
-    }
-
-    // Adding this to check if the client passes a valid input
-    private boolean isValidInput(String str) {
-        return str.matches("[a-zA-Z]+");
     }
 
     public static void main(String args[])
