@@ -42,12 +42,16 @@ public class Server {
 
                     BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file)); // Read files on server database (./images)
                     byte[] buffer = new byte[4096];
-                    int readCount;
+                    int bytesRead;
             
                     out.writeUTF("OK");
+                    out.flush();
 
-                    while ((readCount = bis.read(buffer)) != -1) {
-                        out.write(buffer, 0, readCount);
+                    out.writeLong(file.length());
+                    out.flush();
+
+                    while ((bytesRead = bis.read(buffer)) != -1) {
+                        out.write(buffer, 0, bytesRead);
                         out.flush();
                     }
 
