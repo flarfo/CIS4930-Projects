@@ -4,29 +4,54 @@ import java.util.*;
 import java.time.*;
 
 public class Server {  
+
+
+
+    public static void main(String args[])
+    {
+        // Error handle for when no arguments are passed!
+        if (args.length != 1) {
+            System.out.println("Usage: java Server <port_number>");
+            return;
+        }
+        int port = Integer.parseInt(args[0]); // Port number to listen on
+
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            System.out.println("Server is listening on port " + port);
+
+            // Server is always listening for new connections
+            while (true) {
+                Socket socket = serverSocket.accept();
+                System.out.println("New client connected");
+
+                new ClientHandler(socket).start();
+            }
+        } catch (IOException ex) {
+            System.out.println("Server exception: " + ex.getMessage());
+            ex.printStackTrace();
+        }
+    }
+}
+
+class ClientHandler extends Thread {
     private Socket socket;
-    private ServerSocket serverSocket;
     private DataInputStream in; // Read (client) input from the socket
     private DataOutputStream out; // Write (server) response to client
 
-    public Server(int port) {
-        try
-        {
-            serverSocket = new ServerSocket(port);
-            System.out.println("Server started on PORT " + port);
-            System.out.println("Awaiting client...");
+    public ClientHandler(Socket socket) {
+        this.socket = socket;
+    }
 
-            socket = serverSocket.accept();
+    public void run() { 
+        try {
             System.out.println("Client accepted from " + socket.getLocalAddress());
 
             in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             out = new DataOutputStream(socket.getOutputStream());
             String message = "";
 
-            while (true)
-            {
-                try
-                {
+            while (true){
+                try{
                     message = in.readUTF();
                     // Terminate when "bye" received
                     if (message.equals("bye")) {
@@ -62,28 +87,20 @@ public class Server {
                     System.out.println(err);
                 }
             }
-
-            // Close connection
-            System.out.println("Closing connection...");
-
-            serverSocket.close();
-            in.close();
-            out.close();
-
-            System.out.println("Connection closed.");
         }
         catch (IOException err) {
             System.out.println(err);
+        } finally {
+            // Close connection
+            System.out.println("Closing connection...");
+            try {
+                in.close();
+                out.close();
+                socket.close();
+            } catch (IOException err) {
+                System.out.println(err);
+            }
+            System.out.println("Connection closed.");
         }
-    }
-
-    public static void main(String args[])
-    {
-        // Error handle for when no arguments are passed!
-        if (args.length != 1) {
-            System.out.println("Usage: java Server <port_number>");
-            return;
-        }
-        Server server = new Server(Integer.parseInt(args[0]));
     }
 }
