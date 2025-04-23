@@ -5,7 +5,7 @@ import java.time.*;
 
 public class Server {  
 
-
+    private static final int maxClients = 16; // Maximum number of clients allowed
 
     public static void main(String args[])
     {
@@ -20,7 +20,18 @@ public class Server {
             System.out.println("Server is listening on port " + port);
 
             // Server is always listening for new connections
-            while (true) {
+            // Spec is to exit when all clients exited
+            // therefore keep track of number of clients and exit when all are done
+            boolean started = false;
+
+            while (stateManager.getClientCount() < maxClients) {
+                if (!started) {
+                    System.out.println("Server started, waiting for clients...");
+                    started = true;
+                } else if (stateManager.getClientCount() == 0) {
+                    System.out.println("All clients disconnected, shutting down server.");
+                    break;
+                }
                 Socket socket = serverSocket.accept();
                 System.out.println("New client connected");
 
@@ -44,6 +55,7 @@ class ClientHandler extends Thread {
 
     public void run() { 
         try {
+            stateManager.incrementClientCount(); // Increment client count when a new client connects
             System.out.println("Client accepted from " + socket.getLocalAddress());
 
             in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
@@ -91,6 +103,8 @@ class ClientHandler extends Thread {
         catch (IOException err) {
             System.out.println(err);
         } finally {
+            // Decrement client count when a client disconnects
+            stateManager.decrementClientCount();
             // Close connection
             System.out.println("Closing connection...");
             try {
