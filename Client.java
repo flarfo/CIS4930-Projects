@@ -1,117 +1,159 @@
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.*;
-import java.time.*;
 
 public class Client {
+    private static final int RUNS_PER_STATS = 5;    // print stats every N runs
     private Socket socket;
-    private BufferedReader in; // Read user input from command line
-    private DataInputStream rin; // Read (server) input from the socket
-    private DataOutputStream out; // Write (client) output to the server
+    private BufferedReader userIn;
+    private DataInputStream rin;
+    private DataOutputStream out;
+    private final List<Double> rtts = new ArrayList<>();
 
-    public Client(String addr, int port) {
-        try {
-            // Try connection at addr, port
-            socket = new Socket(addr, port);
+    public Client(String host, int port) throws IOException {
+        socket  = new Socket(host, port);
+        userIn  = new BufferedReader(new InputStreamReader(System.in));
+        rin     = new DataInputStream(socket.getInputStream());
+        out     = new DataOutputStream(socket.getOutputStream());
 
-            in = new BufferedReader(new InputStreamReader(System.in));
-            rin = new DataInputStream(socket.getInputStream());
-            out = new DataOutputStream(socket.getOutputStream());
+        System.out.println("Connected to " + host + ":" + port);
+        System.out.println(rin.readUTF());            // “Hello!”
+    }
 
-            System.out.println("Connection established at " + addr + " on PORT " + port);
-        } catch (UnknownHostException err) {
-            System.out.println(err);
-        } catch (IOException err) {
-            System.out.println(err);
-        }
+    public void loop() throws IOException {
+        String cmd;
+        while (true) {
+            System.out.print("Type SEND or bye (or a filename): ");
+            cmd = userIn.readLine();
+            if (cmd == null) break;
 
-        String message = ""; // String to read message from user input
-        String response = ""; // String to read response from server
-        List<Double> roundTripTimes = new ArrayList<>();
-
-        // Read until "bye" is input
-        while (!message.equals("bye")) {
-            try {
-                // Read user input
-                System.out.print("Enter a file name: ");
-                message = in.readLine();
-                if (message == null)
-                    break;
-                if (message.equals("bye")) {
-                    out.writeUTF("bye");
-                    out.flush();
-                    response = rin.readUTF();
-                    System.out.println(response);
-                    break;
-                }
-                // Write to server + time it
-                long startTime = System.nanoTime();
-
-                out.writeUTF(message);
+            if ("bye".equalsIgnoreCase(cmd.trim())) {
+                out.writeUTF("bye");
                 out.flush();
-
-                // Read from server
-                response = rin.readUTF();
-                if (response.equals("File not found")) {
-                    // The server didn't find the file
-                    System.out.println(response);
-                } else if (response.equals("OK")) {
-
-                    File dir = new File("./downloads");
-                    if (!dir.exists()) dir.mkdirs(); // create the folder if needed
-
-                    FileOutputStream fos = new FileOutputStream(new File(dir, message));
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-    
-                    long fileSize = rin.readLong();
-                    long totalBytesRead = 0;
-
-                    while (totalBytesRead < fileSize) {
-                        bytesRead = rin.read(buffer);
-                        totalBytesRead += bytesRead;
-                        fos.write(buffer, 0, bytesRead);
-                    }
-                    fos.close();
-                    
-                    System.out.println("File downloaded: " + message);
-                }
-
-                long endTime = System.nanoTime();
-                double roundTripTime = (endTime - startTime) / 10000000.0; // Convert to milliseconds
-                System.out.println("Round-trip time: " + roundTripTime + " ms");
-                roundTripTimes.add(roundTripTime);
-
-            } catch (IOException err) {
-                System.out.println(err);
+                System.out.println(rin.readUTF());                 
                 break;
             }
+
+            if ("SEND".equalsIgnoreCase(cmd.trim())) {
+                doBatchSend();
+                continue;
+            }
+            doSingleFile(cmd);
         }
 
-        // Close connection
-        try {
-            System.out.println("Closing connection...");
+        closeQuietly();
+        System.out.println("Connection closed.");
+    }
 
-            in.close();
-            rin.close();
-            out.close();
-            socket.close();
 
-            System.out.println("Connected closed.");
-        } catch (IOException err) {
-            System.out.println(err);
+    private void doBatchSend() throws IOException {
+        List<Integer> order = new ArrayList<>();
+        Random rand = new Random();
+        while (order.size() < 10) {
+            int n = rand.nextInt(10) + 1;
+            if (!order.contains(n)) order.add(n);
+        }
+        StringBuilder sb = new StringBuilder("SEND");
+        for (int n : order) sb.append("sample0").append(n).append(".bmp");
+
+        long start = System.nanoTime();
+        out.writeUTF(sb.toString());
+        out.flush();
+
+        String resp = rin.readUTF();
+        if (!"OK".equals(resp)) { System.out.println("Server: "+resp); return; }
+        int files = rin.readInt();
+
+        File dir = new File("./downloads"); if (!dir.exists()) dir.mkdirs();
+
+        for (int i = 0; i < files; i++) {
+            String marker = rin.readUTF();
+            if ("NF".equals(marker)) { System.out.println("Missing: "+rin.readUTF()); continue; }
+            if (!"FILE".equals(marker)) continue;
+
+            String fname = rin.readUTF();
+            long size    = rin.readLong();
+
+            try (FileOutputStream fos = new FileOutputStream(new File(dir, fname))) {
+                byte[] buf = new byte[8192];
+                long   r   = 0;
+                while (r < size) {
+                    int n = rin.read(buf, 0, (int)Math.min(buf.length, size - r));
+                    fos.write(buf, 0, n);
+                    r += n;
+                }
+            }
+            System.out.println("Saved " + fname + " (" + size + " bytes)");
+        }
+
+        addRtt(start);
+    }
+
+    private void doSingleFile(String filename) throws IOException {
+        long start = System.nanoTime();
+        out.writeUTF(filename);
+        out.flush();
+
+        String resp = rin.readUTF();
+        if ("File not found".equals(resp)) {
+            System.out.println(resp);
+            return;
+        }
+        if (!"OK".equals(resp)) {
+            System.out.println("Server: " + resp); return;
+        }
+
+        File dir = new File("./downloads"); if (!dir.exists()) dir.mkdirs();
+        long size = rin.readLong();
+
+        try (FileOutputStream fos = new FileOutputStream(new File(dir, filename))) {
+            byte[] buf = new byte[4096];
+            long   r   = 0;
+            while (r < size) {
+                int n = rin.read(buf);
+                fos.write(buf, 0, n);
+                r += n;
+            }
+        }
+        System.out.println("File downloaded: " + filename);
+        addRtt(start);
+    }
+    
+    private void addRtt(long startNs) {
+        double ms = (System.nanoTime() - startNs) / 1_000_000.0;
+        System.out.printf("Round-trip: %.2f ms%n", ms);
+        rtts.add(ms);
+        if (rtts.size() == RUNS_PER_STATS) {
+            printStats();
+            rtts.clear();
         }
     }
 
-    public static void main(String args[]) {
+    private void printStats() {
+        double min = Collections.min(rtts);
+        double max = Collections.max(rtts);
+        double mean = rtts.stream().mapToDouble(d -> d).average().orElse(0);
+        double sd = Math.sqrt(rtts.stream().mapToDouble(d -> (d-mean)*(d-mean)).sum()/rtts.size());
+        System.out.printf("Stats (%d runs)  min %.2f  max %.2f  mean %.2f  σ %.2f ms%n",
+                          RUNS_PER_STATS, min, max, mean, sd);
+    }
+
+    private void closeQuietly() {
+        try { userIn.close(); } catch (IOException ignored) {}
+        try { rin.close();    } catch (IOException ignored) {}
+        try { out.close();    } catch (IOException ignored) {}
+        try { socket.close(); } catch (IOException ignored) {}
+    }
+
+    public static void main(String[] args) {
         if (args.length != 2) {
             System.out.println("Usage: java Client <server_address> <port_number>");
             return;
         }
-        String serverAddress = args[0];
-        int port = Integer.parseInt(args[1]);
-        new Client(serverAddress, port);
+        try {
+            new Client(args[0], Integer.parseInt(args[1])).loop();
+        } catch (IOException e) {
+            System.out.println("Client error: " + e.getMessage());
+        }
     }
 }

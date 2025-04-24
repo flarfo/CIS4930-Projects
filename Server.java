@@ -1,120 +1,117 @@
-import java.net.*;
 import java.io.*;
+import java.net.*;
 import java.util.*;
-import java.time.*;
+import java.util.concurrent.atomic.AtomicInteger;
+public class Server {
+    private static final int MAX_CLIENTS = 16;
+    private static final String IMAGE_DIR = "./images";
 
-public class Server {  
+    private static final AtomicInteger ACTIVE = new AtomicInteger();
 
-    private static final int maxClients = 16; // Maximum number of clients allowed
-
-    public static void main(String args[])
-    {
-        // Error handle for when no arguments are passed!
+    public static void main(String[] args) {
         if (args.length != 1) {
             System.out.println("Usage: java Server <port_number>");
             return;
         }
-        int port = Integer.parseInt(args[0]); // Port number to listen on
+        int port = Integer.parseInt(args[0]);
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
-            System.out.println("Server is listening on port " + port);
+            System.out.println("Server listening on port " + port);
 
-            // Server is always listening for new connections
-            // Spec is to exit when all clients exited
-            // therefore keep track of number of clients and exit when all are done
-            boolean started = false;
-
-            while (stateManager.getClientCount() < maxClients) {
-                if (!started) {
-                    System.out.println("Server started, waiting for clients...");
-                    started = true;
-                } else if (stateManager.getClientCount() == 0) {
-                    System.out.println("All clients disconnected, shutting down server.");
-                    break;
-                }
+            while (ACTIVE.get() < MAX_CLIENTS) {
                 Socket socket = serverSocket.accept();
-                System.out.println("New client connected");
-
                 new ClientHandler(socket).start();
             }
-        } catch (IOException ex) {
-            System.out.println("Server exception: " + ex.getMessage());
-            ex.printStackTrace();
+        } catch (IOException e) {
+            System.out.println("Server exception: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-}
 
-class ClientHandler extends Thread {
-    private Socket socket;
-    private DataInputStream in; // Read (client) input from the socket
-    private DataOutputStream out; // Write (server) response to client
+    private static class ClientHandler extends Thread {
+        private final Socket socket;
+        private DataInputStream in;
+        private DataOutputStream out;
 
-    public ClientHandler(Socket socket) {
-        this.socket = socket;
-    }
+        ClientHandler(Socket socket) { this.socket = socket; }
 
-    public void run() { 
-        try {
-            stateManager.incrementClientCount(); // Increment client count when a new client connects
-            System.out.println("Client accepted from " + socket.getLocalAddress());
+        @Override
+        public void run() {
+            ACTIVE.incrementAndGet();
+            try {
+                in  = new DataInputStream(socket.getInputStream());
+                out = new DataOutputStream(socket.getOutputStream());
 
-            in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-            out = new DataOutputStream(socket.getOutputStream());
-            String message = "";
+                System.out.println("Connected: " + socket.getRemoteSocketAddress());
+                out.writeUTF("Hello!");
 
-            while (true){
-                try{
-                    message = in.readUTF();
-                    // Terminate when "bye" received
-                    if (message.equals("bye")) {
+                for ( ; ; ) {
+                    String line = in.readUTF();
+
+                    if ("bye".equalsIgnoreCase(line.trim())) {
                         out.writeUTF("disconnected");
                         break;
                     }
 
-                    File file = new File("./images", message);
-                    if (!file.exists()) {
-                        out.writeUTF("File not found");
+                    if (!line.startsWith("SEND")) {
+                        out.writeUTF("Please type a different command");
                         continue;
                     }
 
-                    BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file)); // Read files on server database (./images)
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-            
-                    out.writeUTF("OK");
-                    out.flush();
-
-                    out.writeLong(file.length());
-                    out.flush();
-
-                    while ((bytesRead = bis.read(buffer)) != -1) {
-                        out.write(buffer, 0, bytesRead);
-                        out.flush();
-                    }
-
-                    bis.close();
+                    List<String> order = parseOrder(line);
+                    sendBatch(order);
                 }
-                catch(IOException err)
-                {
-                    System.out.println(err);
-                }
+
+            } catch (IOException e) {
+                System.out.println("Client I/O error: " + e.getMessage());
+            } finally {
+                ACTIVE.decrementAndGet();
+                closeQuietly();
+                System.out.println("Closed: " + socket.getRemoteSocketAddress());
             }
         }
-        catch (IOException err) {
-            System.out.println(err);
-        } finally {
-            // Decrement client count when a client disconnects
-            stateManager.decrementClientCount();
-            // Close connection
-            System.out.println("Closing connection...");
-            try {
-                in.close();
-                out.close();
-                socket.close();
-            } catch (IOException err) {
-                System.out.println(err);
+
+        private List<String> parseOrder(String cmd) {
+            String[] parts = cmd.trim().split("\\s+");
+            List<String> list = new ArrayList<>();
+            if (parts.length == 1) {                     // no filenames given
+                for (int i = 1; i <= 10; i++)
+                    list.add("sample0" + i + ".bmp");
+            } else {
+                list.addAll(Arrays.asList(parts).subList(1, parts.length));
             }
-            System.out.println("Connection closed.");
+            return list;
+        }
+
+        private void sendBatch(List<String> order) throws IOException {
+            out.writeUTF("OK");
+            out.writeInt(order.size());
+
+            for (String fname : order) {
+                File file = new File(IMAGE_DIR, fname);
+                if (!file.exists()) {
+                    out.writeUTF("NF");
+                    out.writeUTF(fname);
+                    continue;
+                }
+
+                out.writeUTF("FILE");
+                out.writeUTF(fname);
+                out.writeLong(file.length());
+
+                try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(file))) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = bis.read(buf)) != -1) out.write(buf, 0, n);
+                }
+            }
+            out.flush();
+        }
+
+        private void closeQuietly() {
+            try { if (in    != null) in.close();  } catch (IOException ignored) {}
+            try { if (out   != null) out.close(); } catch (IOException ignored) {}
+            try { socket.close(); } catch (IOException ignored) {}
         }
     }
 }
