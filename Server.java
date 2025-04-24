@@ -90,6 +90,9 @@ public class Server {
         }
 
         private void sendBatch(List<String> order) throws IOException {
+            // print confirmation
+            System.out.println("Sending files: " + order);
+            
             out.writeUTF("OK");
             out.writeInt(order.size());
 
