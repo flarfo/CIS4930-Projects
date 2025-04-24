@@ -54,7 +54,15 @@ public class Client {
             if (!order.contains(n)) order.add(n);
         }
         StringBuilder sb = new StringBuilder("SEND");
-        for (int n : order) sb.append("sample0").append(n).append(".bmp");
+        for (int n : order){
+            if (n < 10){
+                sb.append("sample0").append(n).append(".bmp");
+            }
+            else {
+                sb.append("sample").append(n).append(".bmp");
+            }
+            
+        } 
 
         long start = System.nanoTime();
         out.writeUTF(sb.toString());
@@ -118,7 +126,7 @@ public class Client {
         System.out.println("File downloaded: " + filename);
         addRtt(start);
     }
-    
+
     private void addRtt(long startNs) {
         double ms = (System.nanoTime() - startNs) / 1_000_000.0;
         System.out.printf("Round-trip: %.2f ms%n", ms);

@@ -76,7 +76,13 @@ public class Server {
             List<String> list = new ArrayList<>();
             if (parts.length == 1) {                     // no filenames given
                 for (int i = 1; i <= 10; i++)
+                if(i < 10){
                     list.add("sample0" + i + ".bmp");
+                }
+                else{
+                    list.add("sample" + i + ".bmp");
+                }
+                    
             } else {
                 list.addAll(Arrays.asList(parts).subList(1, parts.length));
             }
