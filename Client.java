@@ -54,12 +54,12 @@ public class Client {
             if (!order.contains(n)) order.add(n);
         }
         StringBuilder sb = new StringBuilder("SEND");
-        for (int n : order){
-            if (n < 10){
-                sb.append("sample0").append(n).append(".bmp");
+        for (int num : order){
+            if (num < 10){
+                sb.append(" sample0").append(num).append(".bmp");
             }
             else {
-                sb.append("sample").append(n).append(".bmp");
+                sb.append(" sample").append(num).append(".bmp");
             }
             
         } 
