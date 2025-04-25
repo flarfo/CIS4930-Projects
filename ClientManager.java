@@ -56,13 +56,19 @@ public class ClientManager {
             } else if (cmd.startsWith("send ")) {
                 String[] parts = cmd.split(" ", 3);
                 if (parts.length < 3) {
-                    System.out.println("Usage: send <client_id> <message>");
+                    System.out.println("Usage: send <client_id(s)> <message>");
+                    System.out.println("Example: send 1,2,3 hello");
                 } else {
-                    try {
-                        int id = Integer.parseInt(parts[1]);
-                        sendToClient(id, parts[2]);
-                    } catch (NumberFormatException e) {
-                        System.out.println("Error: Invalid client ID");
+                    String idString = parts[1];
+                    String message = parts[2];
+                    String[] ids = idString.split(",");
+                    for (String idStr : ids) {
+                        try {
+                            int id = Integer.parseInt(idStr.trim());
+                            sendToClient(id, message);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Error: Invalid client ID format '" + idStr + "'");
+                        }
                     }
                 }
             } else {
